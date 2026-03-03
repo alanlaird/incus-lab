@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""cluster-status — single-page CPU / memory / disk view of all Incus cluster nodes.
+
+Reads the node list from Incus, then queries Prometheus for current metrics.
+
+  PROM_URL   override Prometheus base URL  (default: http://172.16.11.190:9090)
+  INCUS_REMOTE  override Incus remote name (default: cluster)
+"""
+
+import json, os, subprocess, sys, urllib.request, urllib.parse
+from datetime import datetime
+
+REMOTE   = os.environ.get("INCUS_REMOTE", "cluster")
+PROM     = os.environ.get("PROM_URL", "http://172.16.11.190:9090")
+BAR      = 14
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def incus_query(path):
+    out = subprocess.check_output(
+        ["incus", "query", f"{REMOTE}:{path}"],
+        stderr=subprocess.DEVNULL,
+    )
+    return json.loads(out)
+
+
+def prom_query(q):
+    url = f"{PROM}/api/v1/query?query={urllib.parse.quote(q)}"
+    with urllib.request.urlopen(url, timeout=5) as r:
+        data = json.load(r)
+    return {r["metric"]["instance"]: float(r["value"][1])
+            for r in data["data"]["result"]}
+
+
+def bar(pct, w=BAR):
+    n = max(0, min(w, round(pct / 100 * w)))
+    return "█" * n + "░" * (w - n)
+
+
+def human(b):
+    for u in ("B", "K", "M", "G", "T"):
+        if b < 1024:
+            return f"{b:.1f}{u}"
+        b /= 1024
+    return f"{b:.1f}P"
+
+
+def pct_color(pct):
+    """ANSI color: green < 60, yellow < 85, red >= 85."""
+    if pct >= 85:  return "\033[31m"   # red
+    if pct >= 60:  return "\033[33m"   # yellow
+    return "\033[32m"                   # green
+
+RESET = "\033[0m"
+BOLD  = "\033[1m"
+DIM   = "\033[2m"
+
+
+# ── data collection ───────────────────────────────────────────────────────────
+
+def get_nodes():
+    """Return [(name, instance_label), ...] sorted by name, online only."""
+    paths = incus_query("/1.0/cluster/members")
+    nodes = []
+    for path in paths:
+        m = incus_query(path)
+        if m.get("status") == "Online":
+            instance = m["url"].replace("https://", "")
+            nodes.append((m["server_name"], instance))
+    return sorted(nodes)
+
+
+def get_metrics():
+    cpu = prom_query(
+        'avg without(cpu,mode)'
+        '(1 - rate(node_cpu_seconds_total{job="incus",mode="idle"}[5m])) * 100'
+    )
+    mem_used = prom_query(
+        'node_memory_MemTotal_bytes{job="incus"}'
+        ' - node_memory_MemAvailable_bytes{job="incus"}'
+    )
+    mem_total = prom_query('node_memory_MemTotal_bytes{job="incus"}')
+    dsk_used = prom_query(
+        'node_filesystem_size_bytes{job="incus",mountpoint="/",fstype="ext4"}'
+        ' - node_filesystem_avail_bytes{job="incus",mountpoint="/",fstype="ext4"}'
+    )
+    dsk_total = prom_query(
+        'node_filesystem_size_bytes{job="incus",mountpoint="/",fstype="ext4"}'
+    )
+    return cpu, mem_used, mem_total, dsk_used, dsk_total
+
+
+# ── display ───────────────────────────────────────────────────────────────────
+
+def fmt_row(name, inst, cpu, mem_used, mem_total, dsk_used, dsk_total):
+    mp = mem_used / mem_total * 100 if mem_total else 0
+    dp = dsk_used / dsk_total * 100 if dsk_total else 0
+
+    def colored_bar(pct):
+        c = pct_color(pct)
+        return f"{c}{bar(pct)}{RESET}"
+
+    def colored_pct(pct):
+        c = pct_color(pct)
+        return f"{c}{pct:4.1f}%{RESET}"
+
+    mem_str = f"{human(mem_used):>6}/{human(mem_total):<5} {colored_pct(mp)}"
+    dsk_str = f"{human(dsk_used):>5}/{human(dsk_total):<5} {colored_pct(dp)}"
+
+    return (
+        f"  {BOLD}{name:<8}{RESET}"
+        f"  {colored_pct(cpu)}  {colored_bar(cpu)}"
+        f"  {mem_str}  {colored_bar(mp)}"
+        f"  {dsk_str}  {colored_bar(dp)}"
+    )
+
+
+def main():
+    try:
+        nodes = get_nodes()
+    except Exception as e:
+        sys.exit(f"incus: {e}")
+
+    if not nodes:
+        sys.exit(f"No online cluster members found (remote: {REMOTE})")
+
+    try:
+        cpu, mem_used, mem_total, dsk_used, dsk_total = get_metrics()
+    except Exception as e:
+        sys.exit(f"prometheus ({PROM}): {e}")
+
+    ts  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    bar_gap = " " * BAR
+
+    print()
+    print(f"  {BOLD}Incus Cluster{RESET}  {DIM}{ts}{RESET}")
+    print()
+    print(
+        f"  {'NODE':<8}   {'CPU':>5}  {bar_gap}"
+        f"  {'MEMORY':^22}  {bar_gap}"
+        f"  {'DISK (/)':^20}  {bar_gap}"
+    )
+    sep = f"  {'─'*8}  {'─'*5}  {'─'*BAR}  {'─'*22}  {'─'*BAR}  {'─'*20}  {'─'*BAR}"
+    print(sep)
+
+    for name, inst in nodes:
+        print(fmt_row(
+            name, inst,
+            cpu.get(inst, 0),
+            mem_used.get(inst, 0), mem_total.get(inst, 1),
+            dsk_used.get(inst, 0), dsk_total.get(inst, 1),
+        ))
+
+    print()
+
+
+if __name__ == "__main__":
+    main()
