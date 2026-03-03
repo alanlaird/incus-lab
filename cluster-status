@@ -2,20 +2,33 @@
 """cluster-status — single-page CPU / memory / disk view of all Incus cluster nodes.
 
 Reads the node list from Incus, then queries Prometheus for current metrics.
+Bar widths scale to the current terminal width automatically.
 
-  PROM_URL   override Prometheus base URL  (default: http://172.16.11.190:9090)
-  INCUS_REMOTE  override Incus remote name (default: cluster)
+  PROM_URL      override Prometheus base URL  (default: http://172.16.11.190:9090)
+  INCUS_REMOTE  override Incus remote name    (default: cluster)
 """
 
-import json, os, subprocess, sys, urllib.request, urllib.parse
+import json, os, shutil, subprocess, sys, urllib.request, urllib.parse
 from datetime import datetime
 
-REMOTE   = os.environ.get("INCUS_REMOTE", "cluster")
-PROM     = os.environ.get("PROM_URL", "http://172.16.11.190:9090")
-BAR      = 14
+REMOTE  = os.environ.get("INCUS_REMOTE", "cluster")
+PROM    = os.environ.get("PROM_URL", "http://172.16.11.190:9090")
+
+# Visible fixed chars per row: 2(indent) + 8(node) + 2 + 5(cpu%) + 2 + 2 + 18(mem) + 2 + 2 + 17(dsk) + 2
+_FIXED  = 62
+_MINBAR = 4
+
+RESET = "\033[0m"
+BOLD  = "\033[1m"
+DIM   = "\033[2m"
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+def terminal_bar_width():
+    cols = shutil.get_terminal_size(fallback=(120, 24)).columns
+    return max(_MINBAR, (cols - _FIXED) // 3)
+
 
 def incus_query(path):
     out = subprocess.check_output(
@@ -33,7 +46,7 @@ def prom_query(q):
             for r in data["data"]["result"]}
 
 
-def bar(pct, w=BAR):
+def bar(pct, w):
     n = max(0, min(w, round(pct / 100 * w)))
     return "█" * n + "░" * (w - n)
 
@@ -47,14 +60,9 @@ def human(b):
 
 
 def pct_color(pct):
-    """ANSI color: green < 60, yellow < 85, red >= 85."""
-    if pct >= 85:  return "\033[31m"   # red
-    if pct >= 60:  return "\033[33m"   # yellow
-    return "\033[32m"                   # green
-
-RESET = "\033[0m"
-BOLD  = "\033[1m"
-DIM   = "\033[2m"
+    if pct >= 85: return "\033[31m"   # red
+    if pct >= 60: return "\033[33m"   # yellow
+    return "\033[32m"                  # green
 
 
 # ── data collection ───────────────────────────────────────────────────────────
@@ -93,26 +101,24 @@ def get_metrics():
 
 # ── display ───────────────────────────────────────────────────────────────────
 
-def fmt_row(name, inst, cpu, mem_used, mem_total, dsk_used, dsk_total):
+def fmt_row(name, inst, cpu, mem_used, mem_total, dsk_used, dsk_total, bw):
     mp = mem_used / mem_total * 100 if mem_total else 0
     dp = dsk_used / dsk_total * 100 if dsk_total else 0
 
-    def colored_bar(pct):
-        c = pct_color(pct)
-        return f"{c}{bar(pct)}{RESET}"
+    def cbar(pct):
+        return f"{pct_color(pct)}{bar(pct, bw)}{RESET}"
 
-    def colored_pct(pct):
-        c = pct_color(pct)
-        return f"{c}{pct:4.1f}%{RESET}"
+    def cpct(pct):
+        return f"{pct_color(pct)}{pct:4.1f}%{RESET}"
 
-    mem_str = f"{human(mem_used):>6}/{human(mem_total):<5} {colored_pct(mp)}"
-    dsk_str = f"{human(dsk_used):>5}/{human(dsk_total):<5} {colored_pct(dp)}"
+    mem_str = f"{human(mem_used):>6}/{human(mem_total):<5} {cpct(mp)}"
+    dsk_str = f"{human(dsk_used):>5}/{human(dsk_total):<5} {cpct(dp)}"
 
     return (
         f"  {BOLD}{name:<8}{RESET}"
-        f"  {colored_pct(cpu)}  {colored_bar(cpu)}"
-        f"  {mem_str}  {colored_bar(mp)}"
-        f"  {dsk_str}  {colored_bar(dp)}"
+        f"  {cpct(cpu)}  {cbar(cpu)}"
+        f"  {mem_str}  {cbar(mp)}"
+        f"  {dsk_str}  {cbar(dp)}"
     )
 
 
@@ -130,19 +136,23 @@ def main():
     except Exception as e:
         sys.exit(f"prometheus ({PROM}): {e}")
 
+    bw  = terminal_bar_width()
+    gap = " " * bw
     ts  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    bar_gap = " " * BAR
 
     print()
     print(f"  {BOLD}Incus Cluster{RESET}  {DIM}{ts}{RESET}")
     print()
     print(
-        f"  {'NODE':<8}   {'CPU':>5}  {bar_gap}"
-        f"  {'MEMORY':^22}  {bar_gap}"
-        f"  {'DISK (/)':^20}  {bar_gap}"
+        f"  {'NODE':<8}   {'CPU':>5}  {gap}"
+        f"  {'MEMORY':^22}  {gap}"
+        f"  {'DISK (/)':^20}  {gap}"
     )
-    sep = f"  {'─'*8}  {'─'*5}  {'─'*BAR}  {'─'*22}  {'─'*BAR}  {'─'*20}  {'─'*BAR}"
-    print(sep)
+    print(
+        f"  {'─'*8}  {'─'*5}  {'─'*bw}"
+        f"  {'─'*22}  {'─'*bw}"
+        f"  {'─'*20}  {'─'*bw}"
+    )
 
     for name, inst in nodes:
         print(fmt_row(
@@ -150,6 +160,7 @@ def main():
             cpu.get(inst, 0),
             mem_used.get(inst, 0), mem_total.get(inst, 1),
             dsk_used.get(inst, 0), dsk_total.get(inst, 1),
+            bw,
         ))
 
     print()
