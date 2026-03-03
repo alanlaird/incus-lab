@@ -8,4 +8,8 @@
 *_id_ed25519*
 *_id_ecdsa*
 **/ansible/inventory.ini
+o11y/metrics.crt
+o11y/metrics.key
+o11y/prometheus.yml
+o11y/grafana/datasource.yml
 .claude/
