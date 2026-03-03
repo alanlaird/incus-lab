@@ -39,9 +39,17 @@ bootstrap: ## install prometheus + grafana and push configs via incus exec
 	incus file push grafana/dashboard-provider.yml \
 	  cluster:grafana/var/lib/grafana/provisioning/dashboards/provider.yml
 	curl -sL "https://grafana.com/api/dashboards/19727/revisions/latest/download" \
-	  -o /tmp/incus-dashboard.json
+	  | sed 's/\$${DS_INCUS}/incus-prometheus/g' \
+	  > /tmp/incus-dashboard.json
 	incus file push /tmp/incus-dashboard.json \
 	  cluster:grafana/var/lib/grafana/dashboards/incus.json
+	curl -sL "https://grafana.com/api/dashboards/1860/revisions/latest/download" \
+	  | sed 's/\$${ds_prometheus}/incus-prometheus/g' \
+	  > /tmp/node-dashboard.json
+	incus file push /tmp/node-dashboard.json \
+	  cluster:grafana/var/lib/grafana/dashboards/nodes.json
+	incus file push grafana/cluster-nodes.json \
+	  cluster:grafana/var/lib/grafana/dashboards/cluster-nodes.json
 	incus exec cluster:grafana -- rc-update add grafana default
 	incus exec cluster:grafana -- rc-service grafana start
 

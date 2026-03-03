@@ -96,6 +96,7 @@ resource "local_file" "grafana_datasource" {
     datasources:
       - name: Incus
         type: prometheus
+        uid: incus-prometheus
         url: http://${coalesce(incus_instance.prometheus.ipv4_address, "pending")}:9090
         isDefault: true
         jsonData:

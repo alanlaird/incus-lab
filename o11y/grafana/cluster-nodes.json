@@ -1,0 +1,417 @@
+{
+  "title": "Incus Cluster Nodes",
+  "uid": "incus-cluster-nodes",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "CPU Usage %",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "incus-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "incus-prometheus"
+          },
+          "expr": "label_replace(label_replace(label_replace(label_replace(avg without(cpu, mode) (1 - rate(node_cpu_seconds_total{job=\"incus\",mode=\"idle\"}[5m])) * 100, \"node\", \"incus1\", \"instance\", \"172\\\\.16\\\\.11\\\\.141\\\\:8443\"), \"node\", \"incus2\", \"instance\", \"172\\\\.16\\\\.11\\\\.142\\\\:8443\"), \"node\", \"incus3\", \"instance\", \"172\\\\.16\\\\.11\\\\.143\\\\:8443\"), \"node\", \"incus4\", \"instance\", \"172\\\\.16\\\\.11\\\\.144\\\\:8443\")",
+          "legendFormat": "{{node}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Memory Usage %",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "incus-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "incus-prometheus"
+          },
+          "expr": "label_replace(label_replace(label_replace(label_replace((1 - node_memory_MemAvailable_bytes{job=\"incus\"} / node_memory_MemTotal_bytes{job=\"incus\"}) * 100, \"node\", \"incus1\", \"instance\", \"172\\\\.16\\\\.11\\\\.141\\\\:8443\"), \"node\", \"incus2\", \"instance\", \"172\\\\.16\\\\.11\\\\.142\\\\:8443\"), \"node\", \"incus3\", \"instance\", \"172\\\\.16\\\\.11\\\\.143\\\\:8443\"), \"node\", \"incus4\", \"instance\", \"172\\\\.16\\\\.11\\\\.144\\\\:8443\")",
+          "legendFormat": "{{node}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Memory Used vs Total",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "incus-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "incus-prometheus"
+          },
+          "expr": "label_replace(label_replace(label_replace(label_replace(node_memory_MemTotal_bytes{job=\"incus\"} - node_memory_MemAvailable_bytes{job=\"incus\"}, \"node\", \"incus1\", \"instance\", \"172\\\\.16\\\\.11\\\\.141\\\\:8443\"), \"node\", \"incus2\", \"instance\", \"172\\\\.16\\\\.11\\\\.142\\\\:8443\"), \"node\", \"incus3\", \"instance\", \"172\\\\.16\\\\.11\\\\.143\\\\:8443\"), \"node\", \"incus4\", \"instance\", \"172\\\\.16\\\\.11\\\\.144\\\\:8443\")",
+          "legendFormat": "{{node}} used",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "incus-prometheus"
+          },
+          "expr": "label_replace(label_replace(label_replace(label_replace(node_memory_MemTotal_bytes{job=\"incus\"}, \"node\", \"incus1\", \"instance\", \"172\\\\.16\\\\.11\\\\.141\\\\:8443\"), \"node\", \"incus2\", \"instance\", \"172\\\\.16\\\\.11\\\\.142\\\\:8443\"), \"node\", \"incus3\", \"instance\", \"172\\\\.16\\\\.11\\\\.143\\\\:8443\"), \"node\", \"incus4\", \"instance\", \"172\\\\.16\\\\.11\\\\.144\\\\:8443\")",
+          "legendFormat": "{{node}} total",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Root Disk Usage %",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "incus-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "incus-prometheus"
+          },
+          "expr": "label_replace(label_replace(label_replace(label_replace((1 - node_filesystem_avail_bytes{job=\"incus\",mountpoint=\"/\",fstype=\"ext4\"} / node_filesystem_size_bytes{job=\"incus\",mountpoint=\"/\",fstype=\"ext4\"}) * 100, \"node\", \"incus1\", \"instance\", \"172\\\\.16\\\\.11\\\\.141\\\\:8443\"), \"node\", \"incus2\", \"instance\", \"172\\\\.16\\\\.11\\\\.142\\\\:8443\"), \"node\", \"incus3\", \"instance\", \"172\\\\.16\\\\.11\\\\.143\\\\:8443\"), \"node\", \"incus4\", \"instance\", \"172\\\\.16\\\\.11\\\\.144\\\\:8443\")",
+          "legendFormat": "{{node}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Root Disk Available",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "incus-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "incus-prometheus"
+          },
+          "expr": "label_replace(label_replace(label_replace(label_replace(node_filesystem_avail_bytes{job=\"incus\",mountpoint=\"/\",fstype=\"ext4\"}, \"node\", \"incus1\", \"instance\", \"172\\\\.16\\\\.11\\\\.141\\\\:8443\"), \"node\", \"incus2\", \"instance\", \"172\\\\.16\\\\.11\\\\.142\\\\:8443\"), \"node\", \"incus3\", \"instance\", \"172\\\\.16\\\\.11\\\\.143\\\\:8443\"), \"node\", \"incus4\", \"instance\", \"172\\\\.16\\\\.11\\\\.144\\\\:8443\")",
+          "legendFormat": "{{node}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Network RX",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "incus-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "incus-prometheus"
+          },
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum without(device) (rate(node_network_receive_bytes_total{job=\"incus\",device!=\"lo\"}[5m])), \"node\", \"incus1\", \"instance\", \"172\\\\.16\\\\.11\\\\.141\\\\:8443\"), \"node\", \"incus2\", \"instance\", \"172\\\\.16\\\\.11\\\\.142\\\\:8443\"), \"node\", \"incus3\", \"instance\", \"172\\\\.16\\\\.11\\\\.143\\\\:8443\"), \"node\", \"incus4\", \"instance\", \"172\\\\.16\\\\.11\\\\.144\\\\:8443\")",
+          "legendFormat": "{{node}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Network TX",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "incus-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "incus-prometheus"
+          },
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum without(device) (rate(node_network_transmit_bytes_total{job=\"incus\",device!=\"lo\"}[5m])), \"node\", \"incus1\", \"instance\", \"172\\\\.16\\\\.11\\\\.141\\\\:8443\"), \"node\", \"incus2\", \"instance\", \"172\\\\.16\\\\.11\\\\.142\\\\:8443\"), \"node\", \"incus3\", \"instance\", \"172\\\\.16\\\\.11\\\\.143\\\\:8443\"), \"node\", \"incus4\", \"instance\", \"172\\\\.16\\\\.11\\\\.144\\\\:8443\")",
+          "legendFormat": "{{node}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1
+}
