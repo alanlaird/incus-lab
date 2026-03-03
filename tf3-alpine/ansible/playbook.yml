@@ -1,0 +1,45 @@
+---
+- name: Configure Alpine VMs
+  hosts: alpine_vms
+  become: true
+  gather_facts: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
+  tasks:
+    - name: Test SSH connectivity (raw)
+      raw: echo ok
+      changed_when: false
+
+    - name: Update apk cache
+      raw: apk update
+      changed_when: false
+
+    - name: Install python3 (bootstrap — required for Ansible modules)
+      raw: apk add --no-cache python3
+      register: python_result
+      changed_when: "'Installing' in python_result.stdout"
+
+    - name: Gather facts (Python now available)
+      setup:
+
+    - name: Install zsh
+      apk:
+        name: zsh
+        state: present
+        update_cache: false
+
+    - name: Verify python3 and zsh versions
+      command: "{{ item }} --version"
+      loop:
+        - python3
+        - zsh
+      changed_when: false
+      register: verify_output
+
+    - name: Report installed versions
+      debug:
+        msg: "{{ item.stdout_lines[0] }}"
+      loop: "{{ verify_output.results }}"
+      loop_control:
+        label: "{{ item.item }}"
