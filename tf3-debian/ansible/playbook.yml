@@ -12,6 +12,13 @@
         state: present
         update_cache: true
 
+    - name: Enable sftp subsystem in sshd_config
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        line: "Subsystem sftp /usr/lib/openssh/sftp-server"
+        regexp: "^#?Subsystem\\s+sftp"
+      notify: Reload sshd
+
     - name: Verify python3 and zsh versions
       command: "{{ item }} --version"
       loop:
@@ -26,3 +33,9 @@
       loop: "{{ verify_output.results }}"
       loop_control:
         label: "{{ item.item }}"
+
+  handlers:
+    - name: Reload sshd
+      service:
+        name: ssh
+        state: reloaded
