@@ -1,0 +1,28 @@
+---
+- name: Configure Debian VMs
+  hosts: debian_vms
+  become: true
+
+  tasks:
+    - name: Update apt cache and install python3 and zsh
+      apt:
+        name:
+          - python3
+          - zsh
+        state: present
+        update_cache: true
+
+    - name: Verify python3 and zsh versions
+      command: "{{ item }} --version"
+      loop:
+        - python3
+        - zsh
+      changed_when: false
+      register: verify_output
+
+    - name: Report installed versions
+      debug:
+        msg: "{{ item.stdout_lines[0] }}"
+      loop: "{{ verify_output.results }}"
+      loop_control:
+        label: "{{ item.item }}"
