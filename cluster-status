@@ -14,7 +14,6 @@ from datetime import datetime
 REMOTE  = os.environ.get("INCUS_REMOTE", "cluster")
 PROM    = os.environ.get("PROM_URL", "http://172.16.11.190:9090")
 
-# Visible fixed chars per row: 2(indent) + 8(node) + 2 + 5(cpu%) + 2 + 2 + 18(mem) + 2 + 2 + 17(dsk) + 2
 _FIXED  = 62
 _MINBAR = 4
 
@@ -22,8 +21,6 @@ RESET = "\033[0m"
 BOLD  = "\033[1m"
 DIM   = "\033[2m"
 
-
-# ── helpers ───────────────────────────────────────────────────────────────────
 
 def terminal_bar_width():
     cols = shutil.get_terminal_size(fallback=(120, 24)).columns
@@ -60,15 +57,12 @@ def human(b):
 
 
 def pct_color(pct):
-    if pct >= 85: return "\033[31m"   # red
-    if pct >= 60: return "\033[33m"   # yellow
-    return "\033[32m"                  # green
+    if pct >= 85: return "\033[31m"
+    if pct >= 60: return "\033[33m"
+    return "\033[32m"
 
-
-# ── data collection ───────────────────────────────────────────────────────────
 
 def get_nodes():
-    """Return [(name, instance_label), ...] sorted by name, online only."""
     paths = incus_query("/1.0/cluster/members")
     nodes = []
     for path in paths:
@@ -98,8 +92,6 @@ def get_metrics():
     )
     return cpu, mem_used, mem_total, dsk_used, dsk_total
 
-
-# ── display ───────────────────────────────────────────────────────────────────
 
 def fmt_row(name, inst, cpu, mem_used, mem_total, dsk_used, dsk_total, bw):
     mp = mem_used / mem_total * 100 if mem_total else 0
